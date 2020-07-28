@@ -10,6 +10,14 @@ file= input( ">>" )
 admonitions = ["attention", "caution", "danger", "error", "hint", "tip",
                "important", "note", "warning", "admonition", "code"]
 
+replacing_dict = {
+    'â€“': "—",
+    "â€”": "–",
+    "â€˜": "‘",
+    "â€™": "’",
+    "â€œ": "“",
+    "â€": "”",
+}
 addIndent = False #if this set to true, add indent to the line
 noNewLine = False
 
@@ -31,24 +39,31 @@ try:
             #list of words in the line
             words = line.split()
 
+            #take care of broken character caused by double conversion
+            for w in words:
+                for key in replacing_dict:
+                    if key in w:
+                        w = w.replace(key,replacing_dict[key])
+
             #use # to mark the need of a newline
             #since pandoc deletes all newlines when converting
-            if len(words) == 2 and words[0] == "#":
+            if len(words) == 2 and words[0].strip() == "#":
                 line = "\n"
                 addIndent = False
 
             #Spot an admonition
-            elif len(words) == 1 and words[0].isalpha() \
-                    and words[0].lower() in admonitions:
+            elif len(words) == 1 and words[0].replace("**","").isalpha() \
+                    and words[0].lower().replace("**","") in admonitions:
                 addIndent = True #set addIndent to true
-                line = ".. " + words[0].lower() + "::\n"
+                line = ".. " + words[0].lower().replace("**","") + "::\n"
 
             #Spot code block and language
-            elif len(words) == 2 and words[0].lower() == "code-block":
+            elif len(words) == 2 and \
+                    words[0].lower().replace("**","") == "code-block":
                 addIndent = True
                 noNewLine = True
-                line = ".. " + words[0].lower() + ":: "\
-                            + words[1]+ "\n\n"
+                line = ".. " + words[0].lower().replace("**","") + ":: "\
+                            + words[1].replace("**","")+ "\n\n"
 
             #delete the extra empty lines caused by
             # converting from Word to rst
