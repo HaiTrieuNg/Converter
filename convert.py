@@ -15,8 +15,14 @@ replacing_dict = {
     "â€”": "–",
     "â€˜": "‘",
     "â€™": "’",
+    "Ã¢â‚¬â„¢": "’",
     "â€œ": "“",
     "â€": "”",
+    "â€¢": "-",
+    "â€¦": "…",
+    "ï¼š": ":",
+    "Ã˜": "Ø",
+    "ÃƒËœ": "Ø"
 }
 addIndent = False #if this set to true, add indent to the line
 noNewLine = False
@@ -28,6 +34,11 @@ try:
 
         for line in fileinput.FileInput(file):
 
+            # take care of broken character caused by double conversion
+            for key in replacing_dict:
+                if key in line:
+                    line = line.replace(key, replacing_dict[key])
+
             #add indents,rst now reads the line as admonitions's content
             #since pandoc takes away indents when converting
             if addIndent is True and noNewLine is False:
@@ -38,12 +49,6 @@ try:
 
             #list of words in the line
             words = line.split()
-
-            #take care of broken character caused by double conversion
-            for w in words:
-                for key in replacing_dict:
-                    if key in w:
-                        w = w.replace(key,replacing_dict[key])
 
             #use # to mark the need of a newline
             #since pandoc deletes all newlines when converting
