@@ -9,7 +9,7 @@ file= input( ">>" )
 
 #list of admonitions
 admonitions = ["attention", "caution", "danger", "error", "hint", "tip",
-               "important", "note", "warning", "admonition", "code"]
+               "important", "note", "warning", "admonition"]
 
 replacing_dict = {
     'â€“': "—",
@@ -28,49 +28,39 @@ replacing_dict = {
 
 count = 0
 addIndent = False #if true, add indent to line for admonition content
-dontAdd = False
-detected = False
-done_writing_to_file = False
+dontAdd = False #don't add the line to result rst file
+detected = False #a code block detected
 
 try:
 
     with open(file, 'r+', encoding='UTF-8') as input_file:
+
+        #define html element for adding newline
         input_file.write (".. |br| raw:: html\n\n"+"     <br/>\n\n")
 
+        #go through each line of the rst file
         for line in fileinput.FileInput(file):
 
             #list of words in the line
             words = line.split()
 
-            #done writing to file
+            #done writing code block (with no indent) to a text file
+            #continue the next steps with AStyle
+            # and wrting back from text file to rst file
             if detected is True \
                     and (len(words) == 1 and words[0].strip() == "#"):
                 detected = False
                 codeFile.close()
 
-
-
-                #do something here to change the codeblock text file with indents
+                #Calling AStyle to add indent to the text file content
 
                 command = "astyle --style=allman " + textFile
                 process = subprocess.Popen(command,
                                            stdout=subprocess.PIPE)
                 output, error = process.communicate()
 
-                #try:
-                #    with open(textFile, 'a+',
-                 #             encoding='UTF-8') as codeblock_file:
-                 #       codeblock_file.write("I was reopened")
-                #        codeblock_file.close()
-                #except FileNotFoundError as error:
-                    # if the file can't be found
-                #   print(error)
-
-
-
-
-                #Then write it to the result rst
-                # writing from text file to rst
+                #Reopenning text file and
+                # write the text content back to the result rst
                 try:
                     with open(textFile, 'r+',
                               encoding='UTF-8') as codeblock_file:
@@ -80,7 +70,7 @@ try:
                                 if key in codeLine:
                                     codeLine = codeLine.replace \
                                         (key, replacing_dict[key])
-                            # add code line from txt file to new rst file
+                            #add code line from txt file to new rst file
 
                             input_file.write("    " + codeLine)
 
@@ -93,11 +83,12 @@ try:
                     print(error)
 
 
-
-
-            elif detected is True  and (len(words) != 0 and words[0].strip() != "#"):
+            #write codeblock line from rst to a text file
+            elif detected is True  and \
+                    (len(words) != 0 and words[0].strip() != "#"):
                 codeFile.write(line)
 
+            #end of codeblock in rst, start adding lines normally again
             if dontAdd is True and len(words) == 1 \
                 and words[0].strip() == "#" :
                 dontAdd = False
@@ -117,7 +108,8 @@ try:
 
             #add indents,rst now reads the line as admonitions's content
             #since pandoc takes away indents when converting
-            elif addIndent is True and line.split() and words[0].strip() != "#":
+            elif addIndent is True and line.split() \
+                    and words[0].strip() != "#":
                 line = "     " + line.strip() + " |br|\n"
 
 
@@ -130,19 +122,24 @@ try:
             #Spot code block and language
             elif len(words) == 2 and \
                     words[0].lower().replace("**","") == "code-block":
+
+                #while true, don't add Pandoc rst content to final rst
                 dontAdd = True
+                #while true, we are still in the code blok cotent
                 detected = True
+
+                #alter and add the title "code-block language" first
                 line = ".. " + words[0].lower().replace("**","") + ":: "\
                             + words[1].replace("**","")+ "\n\n"
 
                 input_file.write(line)
 
-                print("Codeblock detected, please enter a text file path")
-
+                #new text file name
+                #code block from rst will be added to this text file
                 count = count + 1;
                 textFile = str(count) + ".txt"
 
-                #adding to text file
+                #creating the new text file with the above name
                 codeFile = open(textFile, "a+")
 
 
