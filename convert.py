@@ -1,5 +1,6 @@
 import os
 import sys
+import re
 import fileinput
 import subprocess
 
@@ -30,6 +31,10 @@ count = 0
 addIndent = False #if true, add indent to line for admonition content
 dontAdd = False #don't add the line to result rst file
 detected = False #a code block detected
+tocDetected = False
+tableDetected = False
+emptyLine = False
+noTitle  = False
 
 try:
 
@@ -43,6 +48,14 @@ try:
 
             #list of words in the line
             words = line.split()
+
+             # take care of broken character caused by double conversion
+            if line.split() or (len(words) == 1 \
+                and words[0].strip() != "#") :
+                for key in replacing_dict:
+                    if key in line:
+                        line = line.replace(key, replacing_dict[key])
+
 
             #done writing code block (with no indent) to a text file
             #continue the next steps with AStyle
@@ -82,27 +95,38 @@ try:
                     # if the file can't be found
                     print(error)
 
-
             #write codeblock line from rst to a text file
             elif detected is True  and \
                     (len(words) != 0 and words[0].strip() != "#"):
                 codeFile.write(line)
 
-            #end of codeblock in rst, start adding lines normally again
-            if dontAdd is True and len(words) == 1 \
-                and words[0].strip() == "#" :
-                dontAdd = False
 
-            # take care of broken character caused by double conversion
-            if line.split() or (len(words) == 1 \
-                and words[0].strip() != "#") :
-                for key in replacing_dict:
-                    if key in line:
-                        line = line.replace(key, replacing_dict[key])
+            #table without title, replaceing "=" with "-"
+            if noTitle is True and tableDetected is True:
+                line = line.replace("=", "-")
+                noTitle = False
+                tableDetected = False
+
+            #table without title found (no bold characters in first row)
+            elif tableDetected is True and "**" not in line:
+                noTitle = True
+
+            # toc detected,
+            # not adding next lines that start with numbers to final rst
+            # until a line start with letters (end of toc)
+            elif tocDetected and line.split() \
+                    and not words[0].strip().replace('.', "1").isdigit():
+                tocDetected = False
+
+            #end of codeblock in rst, start adding lines normally again
+            elif dontAdd is True and len(words) == 1 \
+                and words[0].strip() == "#" :
+                line = "\n"
+                dontAdd = False
 
             #use # to mark the need of a newline
             #since pandoc deletes all newlines when converting
-            if len(words) == 1 and words[0].strip() == "#":
+            elif len(words) == 1 and words[0].strip() == "#":
                 line = "\n"
                 addIndent = False
 
@@ -142,13 +166,25 @@ try:
                 #creating the new text file with the above name
                 codeFile = open(textFile, "a+")
 
+            elif line.lower().replace("**","").strip() == "table of contents":
+                tocDetected = True
 
+            elif emptyLine is True and line.count("+") >= 2 and\
+                    line.count("-") >= 2 :
+                tableDetected = True
+                emptyLine = False
             #delete the extra empty lines caused by
             # converting from Word to rst
-            if (dontAdd is True or
+
+            elif not line.split() or (len(words) == 1 and
+                words[0] == "|br|"):
+                emptyLine = True
+
+
+            if tocDetected or (dontAdd is True or
                 addIndent is True and len(words) == 1 and
                 words[0] == "|br|") or \
-                (addIndent is True and not line.strip()) :
+                (addIndent is True and not line.strip()):
                 pass
             else:
             #add the lines to the file
