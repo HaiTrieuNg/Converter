@@ -1,3 +1,19 @@
+# ----------------------------------------------------------------------
+# Name: Converter
+# Purpose:  Correcting and restoring the information
+# that lost after using Pandoc to convert from Word to rst
+#
+# Author:   Trieu Nguyen
+# ----------------------------------------------------------------------
+"""
+-Detecting and creating admonitions
+-Detecting and creating codeblock
+-Restore indents in codeblock using Artistic Style
+-Allowing table without title row
+-Delete the table of content that was originally in Word
+-Fixing broken characters caused by double conversion
+"""
+
 import os
 import sys
 import re
