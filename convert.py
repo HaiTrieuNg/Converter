@@ -187,10 +187,14 @@ try:
             # since pandoc takes away indents when converting
             elif addIndent is True and line.split() \
                     and words[0].strip().replace("**", "") != "#":
-                if line.strip()[-1] == "*":
+                if line.strip()[-1] == "*" or line.strip()[-1] == ".":
                     line = "     " + line.strip() + " |br|\n"
                 else:
                     line = "     " + line.strip()
+
+
+
+
 
             # Spot an admonition
             elif (len(words) == 1 and words[0].replace("**", "").isalpha() \
