@@ -9,10 +9,17 @@
 -Detecting and creating admonitions
 -Detecting and creating codeblock
 -Restore indents in codeblock using Artistic Style
--Allowing table without title row
+-Spot and restore grid table without title row
+-Spot and restore simple table with title row
+-Spot and remove title from grid and simple table that not supposed
+to have  a title row
 -Applying title row to table that missing title row
 -Delete the table of content that was originally in Word
 -Fixing broken characters caused by double conversion
+-Merging empty table cells
+-Replace lonely hyphen in a cell with \-, so that it can be read as "-"
+not "."
+
 """
 
 import os
