@@ -21,6 +21,48 @@ import re
 import fileinput
 import subprocess
 
+def getListOfPortion (line, start, end):
+    """
+    Split a portion of the line, or check if that portion is empty
+    :param line: Line to split
+    :param start: start position
+    :param end: end position
+    :return: return a list of words, if line is empty, return False
+    """
+    return line[start: end].split()
+
+def stripListOfPortion (line, start, end):
+    """
+    Strip a portion of the line, then split it (can't be reversed)
+    :param line: Line to strip and split
+    :param start: start position
+    :param end: end position
+    :return: return a list of words, if line is empty, return False
+    """
+    return line[start : end].strip().split()
+
+def findOccurrences(s, ch):
+    """
+    Find positions that a character occurs  in a string
+    :param s: string to check
+    :param ch: character to find
+    :return: list of integer -positions of the character
+    """
+    return [i for i, letter in enumerate(s) if letter == ch]
+
+def getNextPosition (CellPositions, markPosition):
+    """
+    Get the next occuren of a character right after the mark apeared in
+    the string
+    :param CellPositions: list of positions that the character
+     appear in the string
+    :param markPosition: the mark
+    :return: one position that character appears right after
+     the mark position
+    """
+    for p in CellPositions:
+        if p > markPosition:
+            return p
 
 def isEmptyLine (line):
     """
@@ -47,11 +89,20 @@ def isAdmonition (title):
     :return: boolean- True if the line is the title of an admonition
     """
     # list of admonitions
-    admonitions = ["attention", "caution", "danger", "error", "hint", "tip",
+    admonitions = ["attention", "caution", "danger", "hint", "tip",
                    "important", "note", "warning", "admonition"]
 
     return title.lower().replace("**", "").strip() in admonitions
 
+def isTableEdge (line):
+
+    return (line.count("+") >= 2 and \
+                        line.count("-") >= 2 and line.count("-+-") >= 1) or\
+           (line.count("+") >= 2 and \
+                        line.count("=") >= 2 and line.count("=+=") >= 1)
+
+def isSimpleTableEdge (line):
+    return  line.strip().replace("=","1").replace(" ", "2").isdigit() and line.count("=")>= 3
 
 def rstAdmonition (title):
     """
@@ -88,6 +139,7 @@ def content (line):
     :param line: the line to be changed
     :return: string- formatted line
     """
+
     return "     " + line.strip()
 
 
@@ -146,11 +198,20 @@ def main():
     tocDetected = False #detect a toc to delete
     tableDetected = False #detect grid table
     noTitle = False #grid table with no title detected
+    noSTitle = False
     prevLine = "" #keep track of previous line
     haveTitle = False #table should have title detected
     emptyTitle = False
     sTableDetected = False #simple table detected
-
+    insideGrid = False
+    insideSimple = False
+    deletingGridCells = []
+    GfirstLineContent = False
+    SfirstLineContent = False
+    lastGridTitle = False
+    cellUniform =""
+    skip = False
+    simpleDeviders = []
 
     try:
 
@@ -229,22 +290,37 @@ def main():
                     codeFile.write(line)
 
                 # table should not have a title, replaceing "=" with "-"
-                if noTitle and tableDetected is True:
+                if noTitle and tableDetected and isTableEdge (line) and skip:
                     line = line.replace("=", "-")
                     noTitle = False
                     tableDetected = False
+                    insideGrid = True
+                    GfirstLineContent = True
+                    lastGridTitle = True
+                    skip = False
+
                 #table should have a title
-                elif haveTitle and tableDetected is True:
+                elif haveTitle and tableDetected and isTableEdge (line) and skip:
                     line = line.replace("-", "=")
                     haveTitle = False
                     tableDetected = False
+                    insideGrid = True
+                    GfirstLineContent = True
+                    lastGridTitle= True
+                    skip = False
+
                 # table without title found (no bold characters in first row)
-                elif tableDetected  and "**" not in line:
+                elif tableDetected  and "**" not in line and not skip:
                     noTitle = True
+                    skip =True
                 # table with title found
                 # has more than 2 old characters in first row
-                elif tableDetected  and line.count("**") >= 4:
+                elif tableDetected  and line.count("**") >= 4 and not skip:
                     haveTitle = True
+                    skip = True
+
+                elif skip and not isTableEdge (line):
+                    pass
 
                 # end of codeblock in rst, start adding lines normally again
                 if dontAdd  and len(words) == 1 and\
@@ -274,7 +350,7 @@ def main():
 
                 # Spot an admonition
                 #length = 2 case is for Chinese space character
-                elif (len(words) == 1 and words[0].replace("**", "").isalpha() \
+                elif (len(words) == 1 and words[0].replace("**", "").isalpha()\
                         and isAdmonition(words[0]) ) or\
                         (len(words) == 2 and isAdmonition(words[1])):
                     addIndent = True  # set addIndent to true
@@ -315,22 +391,207 @@ def main():
                         line.count("-") >= 2 and line.count("-+-") >= 1:
                     tableDetected = True
 
-                #Spooting and take care of simple table headers
+                #Spotting and take care of simple table headers
                 if line.strip().replace("=","1").replace(" ", "2").isdigit()\
                         and  isEmptyLine(prevLine) \
                         and not tocDetected and not tableDetected:
                     sTableDetected = True
+                    cellUniform = line
 
                 #simple table that need title
                 elif sTableDetected and line.count("**")>=4:
-                    line = line + prevLine #add upper shell line ("===== ====")
+                    line = line + prevLine #add upper Cell line ("===== ====")
                     sTableDetected = False
+                    insideSimple = True
+                    SfirstLineContent = True
+
+                elif noSTitle:
+                    line = line.replace("=","")
+                    if not line.split():
+                        line = ""
+                    sTableDetected = False
+                    insideSimple = True
+                    SfirstLineContent = True
+                    noSTitle = False
 
                 #not a simple table that need title row
                 elif sTableDetected and line.count("**")<=4:
-                    sTableDetected = False
+                    noSTitle = True
 
-                #help with TOC deletion and spotting tables
+                #inside grid table
+                if insideGrid :
+                    #the first line in the content area of the table
+                    if GfirstLineContent and not lastGridTitle:
+
+                        if (line.split()):
+                            #list of positions of |
+                            cellPositions = findOccurrences(line, '|')
+
+                            #go through each positions
+                            for index in range (0, len(cellPositions)):
+                                if index < len(cellPositions) - 1:
+
+                                    #if the portion of the line from
+                                    # this position to the next position
+                                    #is empty
+                                    #allowing at least 3 spaces
+                                    # between the two |
+                                    # to considered empty
+                                    if not getListOfPortion (line,
+                                            cellPositions[index]+1,
+                                             cellPositions[index+1]) and \
+                                            cellPositions[index + 1] - \
+                                            cellPositions[index] > 3:
+
+                                        #store the index of the position
+                                        # in a list,
+                                        # to delete the position later
+                                        if (cellPositions[index]!=0 and
+                                                cellPositions[index]!=1):
+                                            deletingGridCells.append\
+                                                (cellPositions[index])
+
+                                    #found a portion that only has a "-"
+                                    elif getListOfPortion (line,
+                                         cellPositions[index]+1,
+                                        cellPositions[index+1]) and\
+                                            len(stripListOfPortion (line,
+                                         cellPositions[index]+1,
+                                        cellPositions[index+1]) ) == 1 and \
+                                            stripListOfPortion(line,
+                                                        cellPositions[
+                                                        index] + 1,
+                                                        cellPositions[
+                                                        index + 1])[0] == "-" :
+
+                                        #hyphen's position
+                                        # relative to the line
+                                        hyphenPositionList = \
+                                            findOccurrences(line, '-')
+
+                                        #the position of the | that
+                                        # occurs right after hyphen
+                                        hyphenPosition = getNextPosition\
+                                            (hyphenPositionList,
+                                             cellPositions[index])
+
+                                        #replace the lonely hyphen
+                                        # in table with "\-"
+                                        line = line[:hyphenPosition] + "\-" + \
+                                               line[hyphenPosition + 2:]
+
+                            #go through positions to be deleted
+                            # and replace them
+                            if len (deletingGridCells) >= 1:
+                                for i in deletingGridCells:
+                                    line = line[:i] + " " + line[i + 1:]
+
+                        else:
+                            insideGrid = False
+                            deletingGridCells.clear()
+
+                        GfirstLineContent = False
+
+                    #pass the title row, go to the first table cell after title
+                    elif GfirstLineContent and  lastGridTitle:
+                        lastGridTitle = False
+
+                    #go through each line in table to merge epty cells
+                    elif not isTableEdge (line) and len(deletingGridCells)>= 1\
+                            and not GfirstLineContent:
+
+                        for i in deletingGridCells:
+                            line = line[:i] + " " + line[i + 1:]
+
+                    #end of a row, go to the next row
+                    elif isTableEdge(line):
+                        deletingGridCells.clear()
+                        GfirstLineContent = True
+
+                    #done with this table, got out of the table
+                    elif  isTableEdge(prevLine) and not line.split():
+                        insideGrid = False
+                        GfirstLineContent = False
+                        deletingGridCells.clear()
+
+
+
+                #Inside simple table
+                if insideSimple and not isSimpleTableEdge (line):
+
+                    if SfirstLineContent:
+                        #cells of simple table has the same == === shape
+                        #cellUniform is the uniform shape
+
+                        #get all positions of = in the cell line
+                        aligns = findOccurrences(cellUniform, '=')
+
+                        #add first position to this list of positions
+                        #of beginning and endding of each column
+                        #exp:
+                        # this list will have values of these positions
+                        # === ====
+                        # 0 2 3  6
+                        simpleDeviders.append(0)
+                        for p in range (0,len(aligns)):
+                            if p < len(aligns )-1:
+                                if aligns[p+1] - aligns[p] > 1:
+                                    simpleDeviders.append(aligns[p+1])
+                        #add last position to the list
+                        simpleDeviders.append(len(aligns))
+                        SfirstLineContent = False
+
+                    #for the table content lines
+                    elif not SfirstLineContent:
+
+                        #if there are at least 2 columns
+                        if len(simpleDeviders ) >=3:
+
+                            for i in range (0,len(simpleDeviders)-1):
+
+                                #find the col of the row that only has -
+                                if getListOfPortion (line,simpleDeviders[i],
+                                                     simpleDeviders[
+                                    i + 1]) and \
+                                len(stripListOfPortion (line,simpleDeviders[i],
+                                                     simpleDeviders[
+                                    i + 1]) ) == 1 and \
+                                        stripListOfPortion(line,
+                                                         simpleDeviders[i],
+                                                         simpleDeviders[
+                                                             i + 1])[0] == "-":
+                                    #position of the "-"
+                                    # relative to the portion
+                                    # (in that col of the row)
+                                    # exp:
+                                    # === ===
+                                    #      -
+                                    #return 1
+                                    hyphenInPortion = findOccurrences\
+                                        (line[simpleDeviders[i]:
+                                              simpleDeviders[i + 1]], '-')
+
+                                    # position of the "-"
+                                    # relative to the line
+                                    # exp:
+                                    # === ===
+                                    #      -
+                                    # return 5
+                                    hyphenIndex = simpleDeviders[i] +\
+                                                  hyphenInPortion[0]
+
+                                    #replace - with \-
+                                    line = line[:hyphenIndex] + "\-" +\
+                                           line[ hyphenIndex + 1:]
+
+                #Done with this table, got out of the table
+                elif insideSimple and isSimpleTableEdge (line):
+                    insideSimple = False
+                    simpleDeviders.clear()
+                    SfirstLineContent = False
+
+
+                    #help with TOC deletion and spotting tables
                 prevLine = line
 
                 #adding the line to final rst file
@@ -340,6 +601,8 @@ def main():
                 else:
                     # add the lines to the file
                     input_file.write(line)
+
+
 
             #delete the remaining mapping lines
             input_file.truncate(input_file.tell())
