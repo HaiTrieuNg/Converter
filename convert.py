@@ -194,9 +194,8 @@ def error_check (line):
 
 def main():
 
-    print("Please enter a file path with format: path\ filename.rst")
 
-    file = input(">>")
+    file = sys.argv[1]
 
     count = 0 # for codeblock text file name
     addIndent = False  # if true, add indent to line for admonition content
@@ -210,15 +209,17 @@ def main():
     haveTitle = False #table should have title detected
     emptyTitle = False
     sTableDetected = False #simple table detected
-    insideGrid = False
-    insideSimple = False
-    deletingGridCells = []
-    GfirstLineContent = False
-    SfirstLineContent = False
-    lastGridTitle = False
-    cellUniform =""
-    skip = False
-    simpleDeviders = []
+    insideGrid = False #inside a grid table
+    insideSimple = False #inside a simple table
+    deletingGridCells = [] #position of | in the line to be deleted
+    GfirstLineContent = False #first line of each row (except title row)
+    SfirstLineContent = False # first content line of simple table
+    lastGridTitle = False #the ending of title row
+    cellUniform ="" #the cell format of a simple table exp === ===== ==
+    skip = False #skip, don't check this line.
+    # Used for gird table with multi lines - title
+    simpleDeviders = [] # list of the divider positions of simple table.
+    #exp: the position of empty spaces in === === ===
 
     try:
 
