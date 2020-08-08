@@ -14,7 +14,7 @@
 -Delete the table of content that was originally in Word
 -Fixing broken characters caused by double conversion
 """
-
+"""
 import os
 import sys
 import re
@@ -298,4 +298,4 @@ except FileNotFoundError as error:
     print(error)
 
 
-
+"""
