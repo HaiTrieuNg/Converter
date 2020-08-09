@@ -97,7 +97,7 @@ def isAdmonition (title):
     """
     # list of admonitions
     admonitions = ["attention", "caution", "danger", "hint", "tip",
-                   "important", "note", "warning", "admonition"]
+                   "important", "note", "warning", "admonition","error"]
 
     return title.lower().replace("**", "").strip() in admonitions
 
@@ -346,8 +346,9 @@ def main():
 
                 # add indents,rst now reads the line as admonitions's content
                 # since pandoc takes away indents when converting
-                elif addIndent  and line.split() and not\
-                        isNumberSign(words[0]):
+                elif not insideSimple and \
+                        (addIndent  and line.split() and not\
+                        isNumberSign(words[0])):
                     #if end of line, add indent, strip original newline
                     # and add html newline character
                     if line.strip()[-1] == "*" or line.strip()[-1] == ".":
@@ -358,9 +359,11 @@ def main():
 
                 # Spot an admonition
                 #length = 2 case is for Chinese space character
-                elif (len(words) == 1 and words[0].replace("**", "").isalpha()\
+                elif not insideSimple and not insideGrid \
+                        and ((len(words) == 1 and
+                        words[0].replace("**", "").isalpha()\
                         and isAdmonition(words[0]) ) or\
-                        (len(words) == 2 and isAdmonition(words[1])):
+                        (len(words) == 2 and isAdmonition(words[1]))):
                     addIndent = True  # set addIndent to true
                     #making the title line
                     if len(words) == 1:
@@ -626,3 +629,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
