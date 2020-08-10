@@ -86,7 +86,7 @@ def isNumberSign (word):
     :param: the word to be checked
     :return: boolean- True if the the word is "#"
     """
-    return word.strip().replace("**", "") == "#"
+    return word.strip().replace("*", "") == "#"
 
 
 def isAdmonition (title):
@@ -99,7 +99,7 @@ def isAdmonition (title):
     admonitions = ["attention", "caution", "danger", "hint", "tip",
                    "important", "note", "warning", "admonition","error"]
 
-    return title.lower().replace("**", "").strip() in admonitions
+    return title.lower().replace("*", "").strip() in admonitions
 
 def isTableEdge (line):
 
@@ -117,7 +117,7 @@ def rstAdmonition (title):
     :param title: the title line
     :return: string - title string with the correct rst format
     """
-    return ".. " + title.lower().replace("**", "") + "::\n"
+    return ".. " + title.lower().replace("*", "") + "::\n"
 
 
 def isCodeblock (word):
@@ -126,7 +126,7 @@ def isCodeblock (word):
     :param word: the word to be checked
     :return: boolean- if this is the start of codeblock
     """
-    return word.lower().replace("**", "").strip() == "code-block"
+    return word.lower().replace("*", "").strip() == "code-block"
 
 
 def codeblockTitle (title, language):
@@ -136,8 +136,8 @@ def codeblockTitle (title, language):
     :param language: string- the language
     :return: string - codeblock title string with the correct rst format
     """
-    return ".. " + title.lower().replace("**", "") + ":: " \
-                           + language.replace("**", "") + "\n\n"
+    return ".. " + title.lower().replace("*", "") + ":: " \
+                           + language.replace("*", "") + "\n\n"
 
 
 def content (line):
@@ -166,7 +166,7 @@ def isTOCtitle (line):
     :param line: the line to be checked
     :return: boolean- True if the line is a TOC title
     """
-    return line.lower().replace("**", "").strip() == "table of contents"
+    return line.lower().replace("*", "").strip() == "table of contents"
 
 
 def error_check (line):
@@ -196,6 +196,17 @@ def main():
 
 
     file = sys.argv[1]
+
+    if file.split('.')[1] == "docx":
+
+        command = "pandoc -s "+ file.split('.')[0]+".docx" +\
+                  " -o "+ file.split('.')[0]+".rst" +" --extract-media=f "
+
+        process = subprocess.Popen(command,
+                                   stdout=subprocess.PIPE)
+        output, error = process.communicate()
+
+        file = file.split('.')[0]+".rst"
 
     count = 0 # for codeblock text file name
     addIndent = False  # if true, add indent to line for admonition content
@@ -237,6 +248,7 @@ def main():
 
             for line in lines:
 
+                line = line.replace('\u3000','')
                 # list of words in the line
                 words = line.split()
 
@@ -361,9 +373,17 @@ def main():
                 #length = 2 case is for Chinese space character
                 elif not insideSimple and not insideGrid \
                         and ((len(words) == 1 and
-                        words[0].replace("**", "").isalpha()\
-                        and isAdmonition(words[0]) ) or\
-                        (len(words) == 2 and isAdmonition(words[1]))):
+                              words[0].replace("*", "").isalpha() \
+                              and isAdmonition(words[0])) or \
+                             (len(words) == 2 and isAdmonition(words[1]) and
+                              ((len(words[0].strip()) == 3 and
+                                words[0][1] == "*" and words[0][0] == "*") or
+                               (len(words[0].strip()) == 2 and
+                                words[0][0] == "*"
+                                and not words[0][1].isalnum())
+                               or (len(words[0].strip()) == 1
+                               and not words[0][0].isalnum() )))):
+
                     addIndent = True  # set addIndent to true
                     #making the title line
                     if len(words) == 1:
